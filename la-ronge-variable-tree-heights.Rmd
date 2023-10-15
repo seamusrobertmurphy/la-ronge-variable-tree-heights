@@ -1,0 +1,41 @@
+---
+title: "La Ronge Tree Heights"
+author: "SMurphy"
+date: "2023-10-15"
+output: 
+  github_document:
+    toc: TRUE
+    toc_depth: 5
+    number_sections: FALSE
+    df_print: tibble
+---
+
+```{r setup, echo=FALSE, message=FALSE,warning=FALSE, error=FALSE}
+library(sf)
+library(RColorBrewer)
+library(lidR)
+library(ForestTools)
+library(rgl)
+library(pandocfilters)
+library(rmarkdown)
+library(formatR)
+library(gitignore)
+library(tinytex)
+library(knitr)
+library(raster)
+library(webdriver)
+library(webshot)
+library(webshot2)
+library(terra)
+library(matlab)
+#webshot::install_phantomjs(force = TRUE)
+knit_hooks$set(webgl = hook_webgl)
+knit_hooks$set(rgl.static = hook_rgl)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, error=FALSE, message = FALSE)
+set.seed(23)
+```
+
+```{r, rgl.static=TRUE, cache=TRUE, eval=TRUE, echo=TRUE}
+dsm = raster::raster("/media/seamus/USB1/la_ronge/dsm_la_ronge.tif", select = 'xyzcr', filter = '-drop_class 19')
+plot(dsm)
+```
