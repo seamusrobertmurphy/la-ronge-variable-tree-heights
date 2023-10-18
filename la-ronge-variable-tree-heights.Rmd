@@ -85,11 +85,8 @@ To improve algorithm performance, we apply a smoothing operation to our DSM rast
 ```{r, fig.show='hold', out.width="50%", echo=TRUE, eval=TRUE}
 chm_smooth = focal(chm, w = kernel, fun = median, na.rm = TRUE) 
 ttops = ForestTools::vwf(CHM = chm_smooth, winFun = wf_plowright, minHeight = 2)
-ttops$height_95 = ttops$height
-ttops$height_95 = ttops$height_95 * 0.95 #avoid re-runs
+ttops$height_95 = ttops$height * 0.95 #avoid re-runs
 ttops$height_95_stdev = sd(ttops$height_95)
-
- #MacArthur, R. H., & MacArthur, J. W. (1961). On bird species diversity. Ecology, 42(3), 594-598.                          
 sf::st_write(ttops, "/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
 
 chm_ttops = stars::st_rasterize(ttops %>% dplyr::select(height_95, geometry))
