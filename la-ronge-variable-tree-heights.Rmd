@@ -43,14 +43,14 @@ set.seed(23)
 
 # Tree Height Variability
 
-We apply the “Height Variation Hypothesis” and associated methods to estimate tree height heterogeneity. Using these outputs, we classifiy forest areas by such heterogeneity. The end goals is to assist ground crews in inventory operations to identify areas where increased number of sample plots or smaller sampling units area needed.
+We apply the “Height Variation Hypothesis” and associated methods to estimate tree height heterogeneity (MacArthur and MacArthu, 1961). Due to varied factors regarding yield class, soil moisture levels, browsing, species diversity, stocking density, line of sight and clinometer errors, tree height variability presents a key challenge to upholding accuracy targets in forest inventory operations. The following tool aims to assist inventory crews to identify areas of high tree height heterogeneity, where there may be need for an increase in number of sample plots or for a decrease in the size of sampling units. Using LiDAR derived tree metrics, we classify forest areas according simple standard deviation values of tree height to produce maps of Height Heterogeneity Areas, or HHA's.
 
 
 ## Data Source
 
 A digital surface model and digital elevation model were acquired in raster form and with 1m resolution from the HRDEM repository for the La Ronge surrounding area, as shown in the following location: https://open.canada.ca/data/en/dataset/957782bf-847c-4644-a757-e383c0057995/resource/83300867-10b0-4c9d-a2b6-3921f2a07dcb#additional-info
 
-```{r, rgl.static=TRUE, cache=TRUE, eval=TRUE, echo=TRUE}
+```{r, rgl.static=TRUE, fig.show='hold', out.width="33%", cache=TRUE, eval=TRUE, echo=TRUE}
 dsm = raster::raster("/media/seamus/USB1/la_ronge/dsm_la_ronge.tif", select = 'xyzcr', filter = '-drop_class 19')
 dem = raster::raster("/media/seamus/USB1/la_ronge/dem_la_ronge.tif", select = 'xyzcr', filter = '-drop_class 19')
 dsm_sr = terra::rast(dsm)
@@ -82,31 +82,48 @@ plot(heights, window_Popescu, type = "l", ylim = c(0,12), xlab="point elevation 
 
 To improve algorithm performance, we apply a smoothing operation to our DSM raster. With cells softened, we then apply the upside-down watershed algorithm from the ForestTools package, shown as vwf below. Outputs are then converted from simple features to derive 95% height raster and stem point shapefile in ESRI format using a custom function.   
 
-```{r, echo=TRUE, eval=TRUE}
+```{r, fig.show='hold', out.width="50%", echo=TRUE, eval=TRUE}
 chm_smooth = focal(chm, w = kernel, fun = median, na.rm = TRUE) 
 ttops = ForestTools::vwf(CHM = chm_smooth, winFun = wf_plowright, minHeight = 2)
-
 ttops$height_95 = ttops$height
-ttops$height_95 = ttops$height_95 * 0.95
-ttops_df = as.data.frame(ttops)
+ttops$height_95 = ttops$height_95 * 0.95 #avoid re-runs
+ttops$height_95_stdev = sd(ttops$height_95)
 
-ttops_FCAS <- ttops_df %>%
-    mutate(long = unlist(map(ttops_df$geometry,1)),
-           lat = unlist(map(ttops_df$geometry,2)))
+ #MacArthur, R. H., & MacArthur, J. W. (1961). On bird species diversity. Ecology, 42(3), 594-598.                          
+sf::st_write(ttops, "/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
 
-df <- df %>%
-  dplyr::mutate(lon = sf::st_coordinates(.)[,1],
-                lat = sf::st_coordinates(.)[,2])
+chm_ttops = stars::st_rasterize(ttops %>% dplyr::select(height_95, geometry))
+chm_ttops_stdev = stars::st_rasterize(ttops %>% dplyr::select(height_95_stdev, geometry))
+stars::write_stars(chm_ttops, "/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
+stars::write_stars(chm_ttops_stdev, "/media/seamus/USB1/la_ronge/chm_ttops_stdev.tif")
+chm_ttops_raster = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
+chm_ttops_stdev = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_stdev.tif")
+chm_ttops_spatRast = terra::rast(chm_ttops_raster)
+chm_stdev_spatRast = terra::rast(chm_ttops_stdev)
 
-ttops_df = select(ttops_df,geometry, height_95)
+chm_ttops_spatRast[chm_ttops_spatRast == 0] <- NA
+plot(chm_ttops_spatRast, 
+     col = height.colors(50), 
+     main="Stem-derived CHM (95% Height)")
+
+ggplot() +
+  geom_spatraster(data = chm_ttops_spatRast) +
+  geom_spatraster_contour(data = chm_ttops_spatRast, breaks = seq(5, 30, 5)) +
+  scale_fill_whitebox_c() +
+  coord_sf(expand = FALSE) +
+  labs(fill = "Tree Height (95%)")
+
+#ttops_df = as.data.frame(ttops)
+#ttops_df = select(ttops_df,geometry, height_95)
+#ttops_FCAS <- ttops %>%
+ #   dplyr::mutate(lon = sf::st_coordinates(.)[,1],
+  #                lat = sf::st_coordinates(.)[,2])
+#chm_ttops_sv = terra::vect(ttops) #only holds one field by default
+#chm_ttops_sr = terra::rasterize(chm_ttops_sv, chm, touches=TRUE)
 #chm_rr <- ForestTools::sp_summarise(ttops, grid = 1, variables = "height", statFuns = custFuns)
-writeRaster(chm_rr, filename = "/media/seamus/USB1/la_ronge/chm_rr.tif", overwrite=TRUE)
+#writeRaster(chm_rr, filename = "/media/seamus/USB1/la_ronge/chm_rr.tif", overwrite=TRUE)
 #chm_sp = as_Spatial(chm)
 #writeOGR(chm_sp, "/media/seamus/USB1/la_ronge", "chm", driver = "ESRI Shapefile") ##deprecated
-st_write(ttops, "/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
-
-plot(chm_rr, col = height.colors(50))
-plot(sf::st_geometry(chm_sf), pch = 3, add=TRUE)
 ```
 
 ## Validation
@@ -114,24 +131,50 @@ plot(sf::st_geometry(chm_sf), pch = 3, add=TRUE)
 Results are validated using tree-ID and crown segmentation. These steps check for double-counting and overlapping edges. 
 
 ```{r, echo=TRUE, eval=TRUE}
-sCHM<-CHMsmoothing(chm, filter="mean", ws=5) # smoothing CHM
-loc<-FindTreesCHM(sCHM, fws=5, minht=8)      # or import a tree list
+crown_segment = itcSegment::itcIMG(chm_ttops_spatRast,epsg=2957)
+summary(crown_segment)
+plot(crown_segment,axes=T)
+```
 
-# Set the maxcrown parameter
-maxcrown=10.0 
 
-# Set the exclusion parameter
-exclusion=0.3 # 30
+## High Height Heterogenity Areas
 
-# Compute individual tree detection canopy area
-canopy<-ForestCAS(chm, loc, maxcrown, exclusion)
+Using the simple structural diversity index developed by MacArthur and MacArthur (1961), we derived structural diversity classes according to height heterogeneity. As our target here are height heterogeneity areas (HHA's), we highlight below in red the class showing highest standard deviation. 
 
-#==================================================================================#
-# Retrieving the boundary for individual tree detection and canopy area calculation
-#==================================================================================#
-boundaryTrees<-canopy[[1]]
-# Plotting the individual tree canopy boundary over the CHM
-plot(chm, main="LiDAR-derived CHM") 
- 
-# adding tree canopy boundary
-plot(boundaryTrees, add = TRUE, border = 'red', bg = 'transparent')```
+Further metrics may consider combining horizontal estimates from within and between sampling units, as well as crown width heterogeneity in areas where there higher concentrations of wolf and veteran trees. Here we simply rely on raster cell boundaries against population deviation as a quick fix. 
+
+```{r, echo=TRUE, eval=TRUE}
+
+hist(chm_ttops_stdev)
+     
+reclass_df <- c(0, 2, NA,
+                2, 10, 1,
+                10, 15, 2,
+                15, 20, 3,
+                20, Inf, 4)
+
+reclass_m <- matrix(reclass_df,
+                ncol = 3,
+                byrow = TRUE)
+
+chm_classified <- reclassify(chm_ttops_raster,
+                     reclass_m)
+
+plot(chm_classified,
+     col = c("yellow", "blue", "green", "red"))
+
+legend("topright",
+       legend = c("low heterogeneity", "slight heterogeneity", "moderate heterogeneity", "HHA's"),
+       fill = c("yellow", "blue", "green", "red"),
+       border = FALSE,
+       bty = "n") # turn off legend border
+```
+
+
+### References
+
+MacArthur, R. H., & MacArthur, J. W. (1961). On bird species diversity. Ecology, 42(3), 594-598.
+
+Popescu, S. C., & Wynne, R. H. (2004). Seeing the trees in the forest. Photogrammetric Engineering & Remote Sensing, 70(5), 589-604.
+
+Torresani, M., Rocchini, D., Alberti, A., Moudrý, V., Heym, M., Thouverai, E., & Tomelleri, E. (2023). LiDAR GEDI derived tree canopy height heterogeneity reveals patterns of biodiversity in forest ecosystems. Ecological Informatics, 76, 102082.
