@@ -127,7 +127,7 @@ ggplot() +
 
 Results are validated using tree-ID and crown segmentation. These steps check for double-counting and overlapping edges. 
 
-```{r, echo=TRUE, eval=TRUE}
+```{r, echo=TRUE, eval=FALSE}
 crown_segment = itcSegment::itcIMG(chm_ttops_spatRast,epsg=2957)
 summary(crown_segment)
 plot(crown_segment,axes=T)
