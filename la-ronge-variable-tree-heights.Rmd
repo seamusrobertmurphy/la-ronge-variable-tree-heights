@@ -3,7 +3,7 @@ title: "La Ronge Tree Heights"
 author: "SMurphy"
 date: "2023-10-15"
 output: 
-  github_document:
+  html_document:
     toc: TRUE
     toc_depth: 5
     number_sections: FALSE
