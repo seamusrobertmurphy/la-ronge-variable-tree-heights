@@ -43,7 +43,7 @@ set.seed(23)
 
 # Tree Height Variability
 
-We apply the “Height Variation Hypothesis” and associated methods to estimate tree height heterogeneity (MacArthur and MacArthu, 1961). Due to varied factors regarding yield class, soil moisture levels, browsing, species diversity, stocking density, line of sight and clinometer errors, tree height variability presents a key challenge to upholding accuracy targets in forest inventory operations. The following tool aims to assist inventory crews to identify areas of high tree height heterogeneity, where there may be need for an increase in number of sample plots or for a decrease in the size of sampling units. Using LiDAR derived tree metrics, we classify forest areas according simple standard deviation values of tree height to produce maps of Height Heterogeneity Areas, or HHA's.
+We apply the “Height Variation Hypothesis” and associated methods to estimate tree height heterogeneity (MacArthur and MacArthu, 1961). Due to varied factors regarding yield class, soil moisture, browsing, species diversity, stocking density, line of sight and clinometer errors, tree height variability presents a key challenge to upholding accuracy targets in forest inventory operations. The following tool aims to assist inventory crews to identify areas of high tree height heterogeneity, where there may be need for an increase in number of sample plots or for a decrease in the size of sampling units. Using LiDAR derived tree metrics, we classify forest areas according simple standard deviation values of tree height to produce maps of Height Heterogeneity Areas, or HHA's.
 
 
 ## Data Source
