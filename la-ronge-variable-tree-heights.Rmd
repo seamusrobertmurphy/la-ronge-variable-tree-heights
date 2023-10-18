@@ -3,7 +3,7 @@ title: "La Ronge Tree Heights"
 author: "SMurphy"
 date: "2023-10-15"
 output: 
-  html_document:
+  github_document:
     toc: TRUE
     toc_depth: 5
     number_sections: FALSE
@@ -12,6 +12,8 @@ output:
 
 ```{r setup, echo=FALSE, message=FALSE,warning=FALSE, error=FALSE}
 library(sf)
+library(ggplot2)
+library(tidyterra)
 library(RColorBrewer)
 library(lidR)
 library(ForestTools)
@@ -57,14 +59,14 @@ dsm_sr = terra::rast(dsm)
 dem_sr = terra::rast(dem)
 chm_sr = dsm_sr - dem_sr
 chm = raster::raster(chm_sr)
-plot(dsm_sr, main="DSM (metres a.s.l.)", cex.main=0.8, maxpixels=22000000)
-plot(dem_sr, main="DEM (metres a.s.l.)", cex.main=0.8, maxpixels=22000000)
-plot(chm_sr, main="CHM (unprocessed)", cex.main=0.8, maxpixels=22000000)
+plot(dsm_sr, main="DSM (metres a.s.l.)", cex.main=0.8)
+plot(dem_sr, main="DEM (metres a.s.l.)", cex.main=0.8)
+plot(chm_sr, main="CHM (unprocessed)", cex.main=0.8)
 ```
 
 ## Tree top detection 
 
-We adopt below Popescu and Wynne's function (2004) which was developed in spruce forests to define a variable window filter for detecting tree tops. This is to account for variance in Dominant, co-dominant, intermediate, and suppressed trees, which haveboth varying heights and varying crown widths. We assume taller trees have wider crowns. Therefore, we apply a simple linear function (wf_Popescu) to adapt the radius of the search window according to canopy height. With more resources available, a local radius to height curve can be derived from the site's dominant allometry. 
+We adopt below Popescu and Wynne's function (2004) which was developed in pine forests to define a variable window filter for detecting tree tops. This is to account for stand variance across dominant, co-dominant, intermediate, and suppressed trees, which present varying heights and varying crown widths. We assume taller trees have wider crowns. Therefore, we apply a simple linear function (wf_Popescu) to adapt the radius of the search window according to canopy height. With more resources available, a local radius to height curve can be derived from the site's dominant allometry. 
 
 To exclude low-lying underbrush or other spurious treetops, the variable window function is also set with a minimum height of 2 m using the minHeight argument as follows. 
 
@@ -82,13 +84,12 @@ plot(heights, window_Popescu, type = "l", ylim = c(0,12), xlab="point elevation 
 
 To improve algorithm performance, we apply a smoothing operation to our DSM raster. With cells softened, we then apply the upside-down watershed algorithm from the ForestTools package, shown as vwf below. Outputs are then converted from simple features to derive 95% height raster and stem point shapefile in ESRI format using a custom function.   
 
-```{r, fig.show='hold', out.width="50%", echo=TRUE, eval=TRUE}
+```{r, fig.show='hold', out.width="50%", echo=TRUE, eval=FALSE}
 chm_smooth = focal(chm, w = kernel, fun = median, na.rm = TRUE) 
-ttops = ForestTools::vwf(CHM = chm_smooth, winFun = wf_plowright, minHeight = 2)
+ttops = ForestTools::vwf(CHM = chm_smooth, winFun = wf_Popescu, minHeight = 2)
 ttops$height_95 = ttops$height * 0.95 #avoid re-runs
 ttops$height_95_sd = (ttops$height_95 - sd(ttops$height_95))/10
 sf::st_write(ttops, "/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
-
 chm_ttops = stars::st_rasterize(ttops %>% dplyr::select(height_95, geometry))
 chm_ttops_stdev = stars::st_rasterize(ttops %>% dplyr::select(height_95_sd, geometry))
 stars::write_stars(chm_ttops, "/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
@@ -111,17 +112,45 @@ ggplot() +
   coord_sf(expand = FALSE) +
   labs(fill = "Tree Height (95%)")
 
-#ttops_df = as.data.frame(ttops)
-#ttops_df = select(ttops_df,geometry, height_95)
-#ttops_FCAS <- ttops %>%
- #   dplyr::mutate(lon = sf::st_coordinates(.)[,1],
-  #                lat = sf::st_coordinates(.)[,2])
-#chm_ttops_sv = terra::vect(ttops) #only holds one field by default
-#chm_ttops_sr = terra::rasterize(chm_ttops_sv, chm, touches=TRUE)
-#chm_rr <- ForestTools::sp_summarise(ttops, grid = 1, variables = "height", statFuns = custFuns)
-#writeRaster(chm_rr, filename = "/media/seamus/USB1/la_ronge/chm_rr.tif", overwrite=TRUE)
-#chm_sp = as_Spatial(chm)
-#writeOGR(chm_sp, "/media/seamus/USB1/la_ronge", "chm", driver = "ESRI Shapefile") ##deprecated
+ttops %>% as_tibble() %>% print(n=10)
+ttops %>% rename(crownWidth = winRads)
+
+ggplot() +
+  geom_sf(data = ttops, aes(color = ttops$hght_95_sd), show.legend = "point", size = 0.05, shape = ".") +
+    scale_fill_continuous(palette = "lajolla")
+  labs(fill = "Tree Height (95%)")
+```
+
+```{r, fig.show='hold', out.width="50%", echo=FALSE, eval=TRUE}
+chm_ttops_raster = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
+chm_ttops_stdev = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_stdev.tif")
+chm_ttops_spatRast = terra::rast(chm_ttops_raster)
+chm_stdev_spatRast = terra::rast(chm_ttops_stdev)
+
+plot(chm_ttops_spatRast, 
+     col = height.colors(50), 
+     main="Stem-derived CHM (95% Height)")
+
+chm_ttops_spatRast[chm_ttops_spatRast == 0] <- NA
+chm_ttops_raster[chm_ttops_raster == 0] <- NA
+ggplot() +
+  geom_spatraster(data = chm_ttops_spatRast) +
+  geom_spatraster_contour(data = chm_ttops_spatRast, breaks = seq(5, 30, 5)) +
+  scale_fill_whitebox_c() +
+  coord_sf(expand = FALSE) +
+  labs(fill = "Tree Height (95%)")
+
+ttops = sf::st_read("/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
+ttops_df = as.data.frame(ttops)
+ttops %>% rename(crownWidth = winRads)
+ttops %>% as_tibble() %>% print(n=10)
+```
+
+```{r, fig.show='hold', out.width="100%", echo=FALSE, eval=TRUE}
+ggplot() +
+  geom_sf(data = ttops, aes(color = ttops$hght_95_sd), show.legend = "point", size = 0.05, shape = ".") +
+    scale_fill_continuous(palette = "lajolla") + 
+  labs(fill = "Tree Height (95%)")
 ```
 
 ## Validation

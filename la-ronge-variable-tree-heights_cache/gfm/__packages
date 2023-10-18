@@ -24,3 +24,5 @@ geometry
 deldir
 bitops
 rLiDAR
+ggplot2
+tidyterra
