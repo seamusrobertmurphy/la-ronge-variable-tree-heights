@@ -16,3 +16,11 @@ webshot
 webshot2
 terra
 matlab
+spatstat.data
+spatstat.geom
+abind
+magic
+geometry
+deldir
+bitops
+rLiDAR

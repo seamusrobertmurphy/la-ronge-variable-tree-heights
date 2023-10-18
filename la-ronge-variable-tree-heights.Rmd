@@ -86,11 +86,11 @@ To improve algorithm performance, we apply a smoothing operation to our DSM rast
 chm_smooth = focal(chm, w = kernel, fun = median, na.rm = TRUE) 
 ttops = ForestTools::vwf(CHM = chm_smooth, winFun = wf_plowright, minHeight = 2)
 ttops$height_95 = ttops$height * 0.95 #avoid re-runs
-ttops$height_95_stdev = sd(ttops$height_95)
+ttops$height_95_sd = (ttops$height_95 - sd(ttops$height_95))/10
 sf::st_write(ttops, "/media/seamus/USB1/la_ronge/chm_la_ronge.shp")
 
 chm_ttops = stars::st_rasterize(ttops %>% dplyr::select(height_95, geometry))
-chm_ttops_stdev = stars::st_rasterize(ttops %>% dplyr::select(height_95_stdev, geometry))
+chm_ttops_stdev = stars::st_rasterize(ttops %>% dplyr::select(height_95_sd, geometry))
 stars::write_stars(chm_ttops, "/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
 stars::write_stars(chm_ttops_stdev, "/media/seamus/USB1/la_ronge/chm_ttops_stdev.tif")
 chm_ttops_raster = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_raster.tif")
@@ -98,11 +98,12 @@ chm_ttops_stdev = raster::raster("/media/seamus/USB1/la_ronge/chm_ttops_stdev.ti
 chm_ttops_spatRast = terra::rast(chm_ttops_raster)
 chm_stdev_spatRast = terra::rast(chm_ttops_stdev)
 
-chm_ttops_spatRast[chm_ttops_spatRast == 0] <- NA
 plot(chm_ttops_spatRast, 
      col = height.colors(50), 
      main="Stem-derived CHM (95% Height)")
 
+chm_ttops_spatRast[chm_ttops_spatRast == 0] <- NA
+chm_ttops_raster[chm_ttops_raster == 0] <- NA
 ggplot() +
   geom_spatraster(data = chm_ttops_spatRast) +
   geom_spatraster_contour(data = chm_ttops_spatRast, breaks = seq(5, 30, 5)) +
@@ -136,19 +137,18 @@ plot(crown_segment,axes=T)
 
 ## High Height Heterogenity Areas
 
-Using the simple structural diversity index developed by MacArthur and MacArthur (1961), we derived structural diversity classes according to height heterogeneity. As our target here are height heterogeneity areas (HHA's), we highlight below in red the class showing highest standard deviation. 
+Using the simple structural diversity index developed by MacArthur and MacArthur (1961), we derived structural diversity classes according to height heterogeneity. Targeting height heterogeneity areas (HHA's), classes showing highest standard deviation were highlighted below in blue. 
 
-Further metrics may consider combining horizontal estimates from within and between sampling units, as well as crown width heterogeneity in areas where there higher concentrations of wolf and veteran trees. Here we simply rely on raster cell boundaries against population deviation as a quick fix. 
+Further metrics may consider combining horizontal estimates from within and between sampling units, as well as crown width heterogeneity in areas where there higher concentrations of wolf and veteran trees. Here we simply rely on raster cell boundaries against population mean  as a quick fix. 
 
 ```{r, echo=TRUE, eval=TRUE}
 
-hist(chm_ttops_stdev)
+print(chm_ttops_stdev)
      
-reclass_df <- c(0, 2, NA,
-                2, 10, 1,
-                10, 15, 2,
-                15, 20, 3,
-                20, Inf, 4)
+reclass_df <- c(-0.13, 0.1, 1,
+                0.1, 0.4, 2,
+                0.4, 0.6, 3,
+                0.6, Inf, 4)
 
 reclass_m <- matrix(reclass_df,
                 ncol = 3,
@@ -158,13 +158,13 @@ chm_classified <- reclassify(chm_ttops_raster,
                      reclass_m)
 
 plot(chm_classified,
-     col = c("yellow", "blue", "green", "red"))
-
+     col = c("yellow", "red", "green", "blue"))
 legend("topright",
-       legend = c("low heterogeneity", "slight heterogeneity", "moderate heterogeneity", "HHA's"),
-       fill = c("yellow", "blue", "green", "red"),
+       legend = c("low heterogeneity", "slight heterogeneity", "moderate heterogeneity", "HHAs"),
+       fill = c("yellow", "red", "green", "blue"),
        border = FALSE,
-       bty = "n") # turn off legend border
+       bty = "n",
+       cex=0.5) # turn off legend border
 ```
 
 
