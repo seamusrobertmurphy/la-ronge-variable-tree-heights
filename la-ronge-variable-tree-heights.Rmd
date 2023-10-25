@@ -3,7 +3,7 @@ title: "La Ronge Tree Heights"
 author: "SMurphy"
 date: "2023-10-15"
 output: 
-  github_document:
+  html_document:
     toc: TRUE
     toc_depth: 5
     number_sections: FALSE
@@ -173,7 +173,10 @@ Further metrics may consider combining horizontal estimates from within and betw
 ```{r, echo=TRUE, eval=TRUE}
 
 print(chm_ttops_stdev)
-     
+
+chm_ttops_raster_20m = terra::aggregate(chm_ttops_raster, fact = 20, fun = mean)
+chm_ttops_raster_100m = terra::aggregate(chm_ttops_raster_20m, fact = 5, fun = mean)
+
 reclass_df <- c(-0.13, 0.1, 1,
                 0.1, 0.4, 2,
                 0.4, 0.6, 3,
