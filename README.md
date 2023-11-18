@@ -3,14 +3,14 @@ La Ronge Tree Heights
 SMurphy
 2023-10-15
 
-- [Tree Height Variability](#tree-height-variability)
-  - [Data Source](#data-source)
-  - [Tree top detection](#tree-top-detection)
-  - [Validation](#validation)
-  - [High Height Heterogenity Areas](#high-height-heterogenity-areas)
-    - [References](#references)
+- [Intro: Tree height variability](#intro-tree-height-variability)
+- [Data source](#data-source)
+- [Tree top detection](#tree-top-detection)
+- [Validation](#validation)
+- [Height heterogenity areas (HHAs)](#height-heterogenity-areas-hhas)
+- [References](#references)
 
-# Tree Height Variability
+## Intro: Tree height variability
 
 We apply the “Height Variation Hypothesis” and associated methods to
 estimate tree height heterogeneity (MacArthur and MacArthu, 1961). Due
@@ -25,7 +25,7 @@ LiDAR derived tree metrics, we classify forest areas according simple
 standard deviation values of tree height to produce maps of Height
 Heterogeneity Areas, or HHA’s.
 
-## Data Source
+## Data source
 
 A digital surface model and digital elevation model were acquired in
 raster form and with 1m resolution from the HRDEM repository for the La
@@ -172,7 +172,7 @@ summary(crown_segment)
 plot(crown_segment,axes=T)
 ```
 
-## High Height Heterogenity Areas
+## Height heterogenity areas (HHAs)
 
 Using the simple structural diversity index developed by MacArthur and
 MacArthur (1961), we derived structural diversity classes according to
@@ -199,31 +199,35 @@ print(chm_ttops_stdev)
     ## names      : chm_ttops_stdev
 
 ``` r
-reclass_df <- c(-0.13, 0.1, 1,
-                0.1, 0.4, 2,
-                0.4, 0.6, 3,
-                0.6, Inf, 4)
+chm_ttops_raster_20m = terra::aggregate(chm_ttops_raster, fact = 20, fun = mean)
+chm_ttops_raster_100m = terra::aggregate(chm_ttops_raster_20m, fact = 5, fun = mean)
+
+reclass_df <- c(0, 5, 1,
+                5, 10, 2,
+                10, 15, 3,
+                15, Inf, 4)
 
 reclass_m <- matrix(reclass_df,
                 ncol = 3,
                 byrow = TRUE)
 
-chm_classified <- reclassify(chm_ttops_raster,
+chm_classified_20m <- reclassify(chm_ttops_raster_20m,
                      reclass_m)
 
-plot(chm_classified,
+
+plot(chm_classified_20m,
      col = c("yellow", "red", "green", "blue"))
-legend("topright",
-       legend = c("low heterogeneity", "slight heterogeneity", "moderate heterogeneity", "HHAs"),
+legend("topleft",
+       legend = c("low variability", "slight variability", "moderate variability", "high variability"),
        fill = c("yellow", "red", "green", "blue"),
        border = FALSE,
        bty = "n",
-       cex=0.5) # turn off legend border
+       cex=0.9) # turn off legend border
 ```
 
 ![](la-ronge-variable-tree-heights_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
-### References
+## References
 
 MacArthur, R. H., & MacArthur, J. W. (1961). On bird species diversity.
 Ecology, 42(3), 594-598.
